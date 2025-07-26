@@ -1,0 +1,105 @@
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 215 25% 12%;
+    --foreground: 210 40% 98%;
+
+    --card: 220 20% 15%;
+    --card-foreground: 210 40% 98%;
+
+    --popover: 220 20% 15%;
+    --popover-foreground: 210 40% 98%;
+
+    --primary: 210 100% 50%;
+    --primary-foreground: 210 40% 98%;
+
+    --secondary: 215 25% 25%;
+    --secondary-foreground: 210 40% 98%;
+
+    --muted: 215 25% 20%;
+    --muted-foreground: 215 20% 65%;
+
+    --accent: 20 90% 60%;
+    --accent-foreground: 210 40% 98%;
+
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 210 40% 98%;
+
+    --border: 215 25% 25%;
+    --input: 215 25% 25%;
+    --ring: 215 25% 40%;
+
+    --radius: 0.25rem;
+
+    --sidebar-background: 215 25% 15%;
+    --sidebar-foreground: 210 40% 98%;
+    --sidebar-primary: 210 100% 50%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 215 25% 20%;
+    --sidebar-accent-foreground: 210 40% 98%;
+    --sidebar-border: 215 25% 20%;
+    --sidebar-ring: 210 100% 50%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground;
+    font-family: 'Inter', system-ui, sans-serif;
+  }
+}
+
+/* Industrial UI specific styles */
+@layer components {
+  .industrial-panel {
+    @apply bg-industrial-dark border border-industrial-steel/30 rounded shadow-md;
+  }
+  
+  .industrial-header {
+    @apply bg-industrial-blue text-white py-1 px-3 font-semibold border-b border-industrial-steel/50;
+  }
+  
+  .industrial-button {
+    @apply bg-industrial-steel hover:bg-industrial-steel/80 text-white px-4 py-2 rounded 
+           transition-colors duration-200 border border-industrial-steel/50;
+  }
+  
+  .industrial-button-primary {
+    @apply bg-primary hover:bg-primary/90 text-primary-foreground px-4 py-2 rounded
+           transition-colors duration-200 border border-primary/50;
+  }
+  
+  .industrial-button-warning {
+    @apply bg-industrial-yellow text-industrial-dark hover:bg-industrial-yellow/90 px-4 py-2 rounded
+           transition-colors duration-200 border border-industrial-yellow/50;
+  }
+  
+  .industrial-button-danger {
+    @apply bg-industrial-red hover:bg-industrial-red/90 text-white px-4 py-2 rounded
+           transition-colors duration-200 border border-industrial-red/50;
+  }
+  
+  .status-active {
+    @apply bg-green-500/20 text-green-500 px-2 py-0.5 rounded text-xs font-medium;
+  }
+  
+  .status-inactive {
+    @apply bg-gray-500/20 text-gray-400 px-2 py-0.5 rounded text-xs font-medium;
+  }
+  
+  .status-warning {
+    @apply bg-yellow-500/20 text-yellow-500 px-2 py-0.5 rounded text-xs font-medium;
+  }
+  
+  .status-alert {
+    @apply bg-red-500/20 text-red-500 px-2 py-0.5 rounded text-xs font-medium animate-pulse-warning;
+  }
+}

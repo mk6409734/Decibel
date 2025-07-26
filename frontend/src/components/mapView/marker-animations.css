@@ -1,0 +1,83 @@
+/* Pulse animation for selected markers */
+@keyframes pulse {
+  0% {
+    transform: scale(0);
+    opacity: 1;
+  }
+  70% {
+    transform: scale(2.5);
+    opacity: 0;
+  }
+  100% {
+    transform: scale(0);
+    opacity: 0;
+  }
+}
+
+/* Selected marker styles */
+.selected-marker {
+  z-index: 1000 !important;
+}
+
+.selected-marker .marker-inner {
+  position: relative;
+  animation: markerGlow 2s ease-in-out infinite;
+}
+
+.pulse-ring {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  background-color: currentColor;
+  opacity: 0.7;
+  transform: translate(-50%, -50%);
+  animation: pulse 2s ease-out infinite;
+}
+
+/* Glow effect for selected markers */
+@keyframes markerGlow {
+  0%, 100% {
+    box-shadow: 0 0 8px rgba(0,0,0,0.3), 0 0 20px rgba(59, 130, 246, 0.5);
+  }
+  50% {
+    box-shadow: 0 0 8px rgba(0,0,0,0.3), 0 0 30px rgba(59, 130, 246, 0.8);
+  }
+}
+
+/* Smooth transition for marker state changes */
+.custom-icon .marker-inner {
+  transition: all 0.3s ease;
+}
+
+/* Hover effect for markers */
+.custom-icon:hover .marker-inner {
+  transform: scale(1.1);
+  box-shadow: 0 0 15px rgba(0,0,0,0.5);
+}
+
+/* Animation for marker appearance */
+.custom-icon {
+  animation: markerAppear 0.3s ease-out;
+}
+
+@keyframes markerAppear {
+  0% {
+    transform: scale(0);
+    opacity: 0;
+  }
+  50% {
+    transform: scale(1.1);
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+/* Ensure marker cluster groups don't interfere with animations */
+.marker-cluster-group {
+  transition: all 0.3s ease;
+}

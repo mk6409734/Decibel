@@ -1,0 +1,38 @@
+.marker-pin {
+	width: 30px;
+	height: 30px;
+	border-radius: 50%;
+	background: #fff;
+	border: 2px solid #fff;
+	position: relative;
+	transform: translate(-50%, -50%);
+}
+
+.marker-pin::after {
+	content: '';
+	width: 0;
+	height: 0;
+	margin-left: -3px;
+	margin-top: -3px;
+	position: absolute;
+	bottom: -6px;
+	left: 50%;
+	border: 3px solid transparent;
+	border-top-color: #fff;
+}
+
+.marker-pin.green {
+	background-color: #22c55e;
+}
+
+.marker-pin.yellow {
+	background-color: #eab308;
+}
+
+.marker-pin.red {
+	background-color: #ef4444;
+}
+
+.marker-pin.gray {
+	background-color: #6b7280;
+}

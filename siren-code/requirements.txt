@@ -1,0 +1,8 @@
+playsound
+google_trans_new
+gtts
+pydub
+pygame
+eventlet
+python-socketio
+websocket-client

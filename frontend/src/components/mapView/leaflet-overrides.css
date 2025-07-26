@@ -1,0 +1,212 @@
+/* Fix for map attribution */
+.leaflet-container {
+	font-family: inherit;
+}
+
+/* Enhanced cluster styling for CAP alerts */
+.cap-alert-cluster {
+	cursor: pointer;
+	transition: all 0.3s ease;
+}
+
+.cap-alert-cluster:hover {
+	transform: scale(1.1);
+	filter: brightness(1.1);
+}
+
+.cap-alert-cluster-small {
+	animation: pulse-small 3s ease-in-out infinite;
+}
+
+.cap-alert-cluster-medium {
+	animation: pulse-medium 2.5s ease-in-out infinite;
+}
+
+.cap-alert-cluster-large {
+	animation: pulse-large 2s ease-in-out infinite;
+}
+
+@keyframes pulse-small {
+	0%,
+	100% {
+		transform: scale(1);
+		opacity: 1;
+	}
+	50% {
+		transform: scale(1.05);
+		opacity: 0.9;
+	}
+}
+
+@keyframes pulse-medium {
+	0%,
+	100% {
+		transform: scale(1);
+		opacity: 1;
+	}
+	50% {
+		transform: scale(1.08);
+		opacity: 0.85;
+	}
+}
+
+@keyframes pulse-large {
+	0%,
+	100% {
+		transform: scale(1);
+		opacity: 1;
+	}
+	50% {
+		transform: scale(1.1);
+		opacity: 0.8;
+	}
+}
+
+/* Default cluster styling - fallback */
+.marker-cluster-small {
+	background-color: rgba(181, 226, 140, 0.6);
+}
+.marker-cluster-small div {
+	background-color: rgba(110, 204, 57, 0.6);
+}
+.marker-cluster-medium {
+	background-color: rgba(241, 211, 87, 0.6);
+}
+.marker-cluster-medium div {
+	background-color: rgba(240, 194, 12, 0.6);
+}
+.marker-cluster-large {
+	background-color: rgba(253, 156, 115, 0.6);
+}
+.marker-cluster-large div {
+	background-color: rgba(241, 128, 23, 0.6);
+}
+
+/* Override map cursor */
+.leaflet-grab {
+	cursor: default;
+}
+.leaflet-container {
+	background: #f2f2f2;
+	outline: 0;
+}
+
+/* Selected alert polygon styling */
+.selected-alert-polygon {
+	/* animation: alertPulse 1s ease-in-out 1.5; */
+	filter: drop-shadow(0 0 8px rgba(59, 130, 246, 0.6));
+}
+
+/* Regular alert polygon styling */
+.cap-alert-polygon {
+	transition: all 0.3s ease;
+	cursor: pointer;
+}
+
+.cap-alert-polygon:hover {
+	filter: brightness(1.2);
+}
+
+@keyframes alertPulse {
+	0%,
+	100% {
+		opacity: 1;
+		transform: scale(1);
+	}
+	50% {
+		opacity: 0.7;
+		transform: scale(1.02);
+	}
+}
+
+/* CAP Alert marker styling */
+.cap-alert-marker {
+	cursor: pointer;
+	transition: all 0.3s ease;
+}
+
+.cap-alert-marker:hover {
+	transform: scale(1.15);
+	filter: brightness(1.1);
+}
+
+.cap-alert-marker.selected {
+	animation: selectedMarkerPulse 1.5s ease-in-out 2;
+}
+
+@keyframes selectedMarkerPulse {
+	0%,
+	100% {
+		transform: scale(1);
+		filter: brightness(1);
+	}
+	50% {
+		transform: scale(1.1);
+		filter: brightness(1.2);
+	}
+}
+
+/* Enhanced popup styling for dark theme compatibility */
+.cap-alert-popup {
+	background: white;
+	border-radius: 12px;
+	box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
+	overflow: hidden;
+	border: none;
+}
+
+/* Custom state tooltip styling */
+.custom-state-tooltip {
+	background: rgba(55, 65, 81, 0.95) !important;
+	border: 1px solid rgba(156, 163, 175, 0.3) !important;
+	border-radius: 8px !important;
+	color: #f3f4f6 !important;
+	font-size: 12px !important;
+	font-weight: 500 !important;
+	padding: 8px 12px !important;
+	box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3) !important;
+	backdrop-filter: blur(8px);
+}
+
+.custom-state-tooltip::before {
+	border-top-color: rgba(55, 65, 81, 0.95) !important;
+}
+
+/* Leaflet popup styling overrides */
+.leaflet-popup-content-wrapper {
+	padding: 0;
+	border-radius: 12px;
+	box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
+}
+
+.leaflet-popup-content {
+	margin: 12px;
+	line-height: 1.4;
+}
+
+.leaflet-popup-tip {
+	box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+}
+
+/* Enhanced layer control styling for dark theme */
+.leaflet-control-layers {
+	background: rgba(31, 41, 55, 0.95) !important;
+	border: 1px solid rgba(75, 85, 99, 0.5) !important;
+	border-radius: 8px !important;
+	color: #f3f4f6 !important;
+	backdrop-filter: blur(8px);
+}
+
+.leaflet-control-layers-toggle {
+	background: rgba(31, 41, 55, 0.9) !important;
+	border-radius: 6px;
+}
+
+.leaflet-control-layers label {
+	color: #f3f4f6 !important;
+	font-weight: 500;
+}
+
+.leaflet-control-layers-separator {
+	border-top: 1px solid rgba(75, 85, 99, 0.3) !important;
+}

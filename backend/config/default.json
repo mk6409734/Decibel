@@ -1,0 +1,12 @@
+{
+	"mongoURI": "mongodb://127.0.0.1:27017/sirenManagement",
+	"avatarBaseURI": "https://ui-avatars.com/api/?background=0D8ABC&color=fff&name=",
+	"jwtSecret": "fwm349z#$()8zjfrwm43",
+	"clientOrigin": "scaffold.example.com",
+	"serverPort": 5001,
+	"fromMailId": "prashant@example.com",
+	"fromMailName": "Prashant",
+	"mailHost": "mail.example.com",
+	"smtpPassword": "secret",
+	"smtpUser": "user"
+}

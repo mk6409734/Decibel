@@ -1,0 +1,12 @@
+{
+	"mongoURI": "mongodb://host.docker.internal:25000/scaffoldAuth",
+	"avatarBaseURI": "https://ui-avatars.com/api/?background=0D8ABC&color=fff&name=",
+	"jwtSecret": "fwm349z#$()8zjfrwm43",
+	"clientOrigin": "scaffold.example.com",
+	"serverPort": 5000,
+	"fromMailId": "prashant@example.com",
+	"fromMailName": "Prashant",
+	"mailHost": "mail.example.com",
+	"smtpPassword": "secret",
+	"smtpUser": "user"
+}
