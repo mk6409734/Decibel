@@ -36,7 +36,7 @@ export const initAuth = () => {
 };
 
 export const login = async (credentials: LoginCredentials): Promise<LoginResponse> => {
-	const response = await axios.post(`${API_BASE_URL}/api/auth/login`, credentials);
+	const response = await axios.post('http://localhost:5001/api/user/login', credentials);
 	const { token } = response.data;
 
 	// Store token in localStorage and set axios headers
@@ -47,7 +47,7 @@ export const login = async (credentials: LoginCredentials): Promise<LoginRespons
 };
 
 export const loadUser = async (): Promise<User> => {
-	const response = await axios.get(`${API_BASE_URL}/api/auth/`);
+	const response = await axios.get('http://localhost:5001/api/user/');
 	return response.data;
 };
 

@@ -2,8 +2,9 @@ import { Request, Response, Router } from 'express';
 const router = Router();
 import { check, validationResult } from 'express-validator';
 const config = require('config');
+const User = require("../../models/User.ts")
 import crypto from 'crypto';
-import User from '../../models/User';
+// import User from '../../models/User.ts';
 import { sign } from 'jsonwebtoken';
 import { compare, genSalt, hash } from 'bcryptjs';
 import userAuth from '../../middleware/userAuth';

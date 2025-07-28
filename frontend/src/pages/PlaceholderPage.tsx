@@ -43,7 +43,7 @@ const PlaceholderPage: React.FC<PlaceholderPageProps> = ({ title, icon }) => {
 					<div className='mt-4 py-4 px-8 bg-industrial-steel/10 rounded-md inline-block'>
 						<div className='flex items-center gap-4'>
 							<Wrench className='h-6 w-6 text-industrial-yellow' />
-							<span>Requires Admin Approval</span>
+							<span>Approval granted</span>
 						</div>
 					</div>
 				</CardContent>

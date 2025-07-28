@@ -64,6 +64,7 @@ const CAPMapPage = () => {
 		const handleUpdateAlert = (alert: CAPAlert) => {
 			setCapAlerts(prev => prev.map(a => (a._id === alert._id ? alert : a)));
 		};
+		
 
 		socket.on('cap-alert-new', handleNewAlert);
 		socket.on('cap-alert-update', handleUpdateAlert);
@@ -80,6 +81,7 @@ const CAPMapPage = () => {
 			setLoading(true);
 			setError(null);
 			const alerts = await capAlertService.getActiveAlerts();
+			console.log('Fetched CAP Alerts:', alerts); // 👈 Add this
 			setCapAlerts(alerts);
 		} catch (err) {
 			setError('Failed to fetch alerts');
@@ -134,6 +136,12 @@ const CAPMapPage = () => {
 
 		return matchesSearch && matchesSeverity;
 	});
+
+// 	console.log("All CAP Alerts:", capAlerts);
+//   console.log("Filtered Alerts:", filteredAlerts);
+//   console.log("Search Term:", searchTerm);
+//   console.log("Severity Filter:", severityFilter);
+
 
 	// Calculate pagination
 	const totalPages = Math.ceil(filteredAlerts.length / itemsPerPage);

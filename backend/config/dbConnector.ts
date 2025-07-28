@@ -1,11 +1,18 @@
 import { connect } from 'mongoose';
-const config = require('config');
+import dotenv from "dotenv";
 import { ErrorCode } from '../utils/consts';
-const db = config.get('mongoURI');
+import mongoose from 'mongoose';
+mongoose.set('strictQuery', true); // or false if needed
+
+const config = require('config');
+
+dotenv.config();
+
+const db = process.env.MONGO_URI;
 
 const connectDB = async () => {
 	try {
-		await connect(db);
+		await connect(db!);
 		console.log('DB Success');
 	} catch (err) {
 		console.log('Error Connecting', err);

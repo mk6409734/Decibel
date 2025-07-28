@@ -10,9 +10,10 @@ import * as http from "http";
 import capScheduler from "./services/capScheduler";
 import CAPSource from "./models/CAPSource";
 
+require("dotenv").config();
 
 
-const connectDb =  require("./utils/db")
+// const connectDb =  require("./utils/db")
 
 const PORT = config.get("serverPort");
 
@@ -33,7 +34,7 @@ app.use(
 );
 
 //**********************************Routes**********************************/
-app.use("/api/auth", auth);
+app.use("/api/user", auth);
 app.use(routes); // This includes sirens, districts, cap-alerts, and cap-sources
 app.use("/api/controller", controllerRouter);
 socketManager.init(server);
@@ -53,7 +54,7 @@ const initializeCAPSystem = async () => {
         language: "en",
         isActive: true,
         isDefault: true,
-        fetchInterval: 3,
+        fetchInterval: 30,
         description:
           "National Disaster Management Authority of India - Official CAP alerts for disasters and emergencies across India",
         metadata: {
@@ -76,9 +77,9 @@ const initializeCAPSystem = async () => {
   }
 };
 
-connectDb().then(() => {
+// connectDB().then(() => {
   server.listen(PORT, () => {
     console.log("Server is running Go! " + PORT);
     initializeCAPSystem();
   });
-});
+// });
