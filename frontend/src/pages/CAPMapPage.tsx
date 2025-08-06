@@ -81,7 +81,6 @@ const CAPMapPage = () => {
 			setLoading(true);
 			setError(null);
 			const alerts = await capAlertService.getActiveAlerts();
-			console.log('Fetched CAP Alerts:', alerts); // 👈 Add this
 			setCapAlerts(alerts);
 		} catch (err) {
 			setError('Failed to fetch alerts');

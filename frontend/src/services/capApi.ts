@@ -3,6 +3,7 @@ import { CAPAlert, CAPAlertResponse, CAPAlertStats } from '@/types/cap';
 
 const API_BASE_URL = 'https://response.decibel.company';
 
+
 const capApi = axios.create({
 	baseURL: `${API_BASE_URL}/api/cap-alerts`,
 	headers: {

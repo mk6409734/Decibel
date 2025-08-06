@@ -1,77 +1,131 @@
-import React, { useState } from 'react';
+import React, { useState } from "react";
 import {
-	Table,
-	TableHeader,
-	TableRow,
-	TableHead,
-	TableBody,
-	TableCell,
-} from '@/components/ui/table';
-import { Button } from '@/components/ui/button';
-import { Bell, BellOff, ChevronDown, ChevronUp } from 'lucide-react';
-import { SirenType } from '@/types';
-import SirenStatusBadge from './SirenStatusBadge';
-import SirenControlDialog from '@/components/SirenControlDialog';
+  Table,
+  TableHeader,
+  TableRow,
+  TableHead,
+  TableBody,
+  TableCell,
+} from "@/components/ui/table";
+import { Button } from "@/components/ui/button";
+import { Bell, BellOff, ChevronDown, ChevronUp } from "lucide-react";
+import { SirenType } from "@/types";
+import SirenStatusBadge from "./SirenStatusBadge";
+import SirenControlDialog from "@/components/SirenControlDialog";
+import jsPDF from "jspdf";
+import autoTable from "jspdf-autotable";
 
 interface SirenListProps {
-	sirens: any[];
-	sendSignal?: (
-		sirenId: string,
-		type: string,
-		value: any,
-		alarmType: string,
-		gapAudio: number,
-		language: string
-	) => void;
+  sirens: any[];
+  sendSignal?: (
+    sirenId: string,
+    type: string,
+    value: any,
+    alarmType: string,
+    gapAudio: number,
+    language: string
+  ) => void;
 }
 
 const SirenList: React.FC<SirenListProps> = ({ sirens, sendSignal }) => {
-	const [searchTerm, setSearchTerm] = useState('');
-	const [typeFilter, setTypeFilter] = useState<SirenType[]>(['GPRS', 'Ethernet']);
-	const [expandedDistrictId, setExpandedDistrictId] = useState<string | null>(null);
-	const [expandedBlockId, setExpandedBlockId] = useState<string | null>(null);
+  console.log("sirensdata", sirens);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [typeFilter, setTypeFilter] = useState<SirenType[]>([
+    "GPRS",
+    "Ethernet",
+  ]);
+  const [expandedDistrictId, setExpandedDistrictId] = useState<string | null>(
+    null
+  );
+  const [expandedBlockId, setExpandedBlockId] = useState<string | null>(null);
 
-	// Dialog state
-	const [isDialogOpen, setIsDialogOpen] = useState(false);
-	const [selectedSiren, setSelectedSiren] = useState<any>(null);
+  // Dialog state
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [selectedSiren, setSelectedSiren] = useState<any>(null);
 
-	// Flatten all sirens for filtering
-	const allSirens = sirens.flatMap(district => district.blocks.flatMap(block => block.sirens));
+  // Flatten all sirens for filtering
+  const allSirens = sirens.flatMap((district) =>
+    district.blocks.flatMap((block) => block.sirens)
+  );
 
-	const filteredSirens = allSirens.filter(siren => {
-		const matchesSearch =
-			siren.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-			siren.location.toLowerCase().includes(searchTerm.toLowerCase());
-		const matchesType = siren.type.some(t => typeFilter.includes(t));
-		return matchesSearch && matchesType;
-	});
+  const filteredSirens = allSirens.filter((siren) => {
+    const matchesSearch =
+      siren.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      siren.location.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesType = siren.type.some((t) => typeFilter.includes(t));
+    return matchesSearch && matchesType;
+  });
 
-	const handleTypeFilterChange = (type: SirenType) => {
-		setTypeFilter(prev => {
-			if (prev.includes(type)) {
-				return prev.filter(t => t !== type);
-			} else {
-				return [...prev, type];
-			}
-		});
-	};
+  const handleTypeFilterChange = (type: SirenType) => {
+    setTypeFilter((prev) => {
+      if (prev.includes(type)) {
+        return prev.filter((t) => t !== type);
+      } else {
+        return [...prev, type];
+      }
+    });
+  };
 
-	const handleTestSiren = (siren: any, e: React.MouseEvent) => {
-		e.stopPropagation(); // Prevent row expansion when clicking the button
-		setSelectedSiren(siren);
-		setIsDialogOpen(true);
-	};
+  const handleTestSiren = (siren: any, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setSelectedSiren(siren);
+    setIsDialogOpen(true);
+  };
 
-	const toggleDistrict = (districtId: string) => {
-		setExpandedDistrictId(prev => (prev === districtId ? null : districtId));
-		setExpandedBlockId(null); // Reset block expansion when district changes
-	};
+  const toggleDistrict = (districtId: string) => {
+    setExpandedDistrictId((prev) => (prev === districtId ? null : districtId));
+    setExpandedBlockId(null);
+  };
 
-	const toggleBlock = (blockId: string) => {
-		setExpandedBlockId(prev => (prev === blockId ? null : blockId));
-	};
+  const toggleBlock = (blockId: string) => {
+    setExpandedBlockId((prev) => (prev === blockId ? null : blockId));
+  };
 
-	return (
+  const handleDownloadLogs = async () => {
+    try {
+      // Fetch logs for all sirens
+      const response = await fetch('http://localhost:5001/api/controller/logs'); // Adjust URL based on your API base path
+      if (!response.ok) {
+        throw new Error('Failed to fetch logs');
+      }
+      const sirens = await response.json();
+
+      // Create PDF
+      const doc = new jsPDF();
+      doc.setFontSize(16);
+      doc.text('Siren Execution Logs', 14, 20);
+
+      // Prepare table data
+      const tableData = sirens.flatMap((siren: any) =>
+        siren.logs.map((log: any) => [
+          siren.id,
+          siren.name,
+          log.action.toUpperCase(),
+          new Date(log.timestamp).toLocaleString(),
+          log.alertType || '-',
+          log.message || '-',
+        ])
+      );
+
+      // Generate table
+      autoTable(doc, {
+        head: [['Siren ID', 'Siren Name', 'Action', 'Timestamp', 'Alert Type', 'Message']],
+        body: tableData,
+        startY: 30,
+        styles: { fontSize: 10 },
+        headStyles: { fillColor: [66, 66, 66], textColor: [255, 255, 255] },
+        alternateRowStyles: { fillColor: [240, 240, 240] },
+      });
+
+      // Download PDF
+      doc.save('siren_execution_logs.pdf');
+    } catch (error) {
+      console.error('Error generating PDF:', error);
+      alert('Failed to download logs. Please try again.');
+    }
+  };
+
+  return (
     <div className="space-y-4">
       <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4"></div>
 
@@ -79,9 +133,12 @@ const SirenList: React.FC<SirenListProps> = ({ sirens, sendSignal }) => {
         <div className="bg-industrial-blue text-white py-2 px-4 font-semibold flex items-center justify-between">
           <div>Siren List</div>
           <div className="text-sm space-x-4">
-            <button className="border border-gray-500 py-2 px-2 rounded-lg hover:bg-industrial-steel transition-all">
+            <Button
+              className="border border-gray-500 py-2 px-2 rounded-lg hover:bg-industrial-steel transition-all"
+              onClick={handleDownloadLogs}
+            >
               Download Siren Executions
-            </button>
+            </Button>
             <span>Total: {filteredSirens.length} sirens</span>
           </div>
         </div>

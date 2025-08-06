@@ -51,10 +51,12 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
   const refreshData = async () => {
     try {
       setLoading(true);
+      console.log("Fetching sirens...");
       const [districtsData, sirensData] = await Promise.all([
         api.getDistricts(),
         api.getSirens(),
       ]);
+      console.log("Fetched sirens:", sirensData);
       setDistricts(districtsData);
       setSirens(sirensData);
       setError(null);
@@ -86,11 +88,17 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
     );
   };
 
+
   const updateDistrict = (districtId: string, updates: Partial<District>) => {
     setDistricts((prev) =>
       prev.map((d) => (d.id === districtId ? { ...d, ...updates } : d))
     );
   };
+
+  // 🔁 Fetch sirens and districts on load
+  useEffect(() => {
+    refreshData();
+  }, []);
 
   // 🔁 Fetch alerts on load
   useEffect(() => {
@@ -127,7 +135,6 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
   const fetchActiveAlerts = async () => {
     try {
       const alerts = await capAlertService.getActiveAlerts();
-      console.log("Fetched CAP Alerts:", alerts);
       setCapAlerts(alerts);
     } catch (err) {
       console.error("Error fetching CAP alerts:", err);

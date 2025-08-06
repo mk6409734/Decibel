@@ -6,3 +6,4 @@ export function cn(...inputs: ClassValue[]) {
 }
 
 export const API_BASE_URL = 'https://cap.decibel.company';
+// export const API_BASE_URL = 'http://localhost:5001';

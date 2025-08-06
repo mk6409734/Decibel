@@ -5,6 +5,10 @@ import { socket } from '@/lib/socket';
 
 const Index = () => {
 	const { districts, sirens, loading, error, updateSiren } = useData();
+	
+	
+
+	
 
 	useEffect(() => {
 		const handleStatusChange = (data: { sirenId: string; status: string; lastChecked: Date }) => {
