@@ -1,4 +1,4 @@
-import mongoose, { Schema, Document } from 'mongoose';
+import mongoose, { Schema, Document } from "mongoose";
 
 export interface ILocation {
   lat: number;
@@ -6,10 +6,10 @@ export interface ILocation {
 }
 
 export interface ISirenLog {
-  action: 'on' | 'off';
+  action: "on" | "off";
   timestamp: Date;
   alertType?: string; // Optional: Type of alert if provided
-  message?: string;   // Optional: Message played during 'on'
+  message?: string; // Optional: Message played during 'on'
 }
 
 export interface ISiren extends Document {
@@ -18,9 +18,10 @@ export interface ISiren extends Document {
   location: ILocation;
   playing: boolean;
   type: string[];
-  status: 'active' | 'inactive' | 'warning' | 'alert';
+  status: "active" | "inactive" | "warning" | "alert";
   lastChecked: Date;
-  district: string;
+  site: mongoose.Types.ObjectId; // Reference to site
+  district: string; // Keep for backward compatibility
   block: string;
   parent_site: string;
   color: string;
@@ -64,12 +65,17 @@ const sirenSchema: Schema = new Schema(
     ],
     status: {
       type: String,
-      enum: ['active', 'inactive', 'warning', 'alert'],
-      default: 'inactive',
+      enum: ["active", "inactive", "warning", "alert"],
+      default: "inactive",
     },
     lastChecked: {
       type: Date,
       default: Date.now,
+    },
+    site: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Site',
+      required: true,
     },
     district: {
       type: String,
@@ -85,13 +91,13 @@ const sirenSchema: Schema = new Schema(
     },
     color: {
       type: String,
-      default: '#000000',
+      default: "#000000",
     },
     logs: [
       {
         action: {
           type: String,
-          enum: ['on', 'off'],
+          enum: ["on", "off"],
           required: true,
         },
         timestamp: {
@@ -106,8 +112,13 @@ const sirenSchema: Schema = new Schema(
         },
       },
     ],
+    createdBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+      required: true,
+    },
   },
   { timestamps: true }
 );
 
-export default mongoose.model<ISiren>('Siren', sirenSchema);
+export default mongoose.model<ISiren>("Siren", sirenSchema);

@@ -1,170 +1,139 @@
 import express from 'express';
+import userAuth, { requireAdmin, checkDistrictAccess } from '../../middleware/userAuth';
 import District from '../../models/District';
-import Siren from '../../models/Siren';
+import Site from '../../models/Site';
+import { ErrorCode, errorWrapper } from '../../utils/consts';
 
 const router = express.Router();
 
-router.get('/all', async (req, res) => {
+// @route   GET api/district
+// @desc    Get all districts (filtered by user access)
+// @access  Private
+router.get('/', userAuth, async (req: any, res: any) => {
 	try {
-		const districts = await District.find();
+		let districts;
+		
+		// Admins can see all districts
+		if (req.user.userType === 'admin') {
+			districts = await District.find().populate('sites');
+		} else {
+			// Managers and operators can only see their assigned districts
+			const user = await require('../../models/User').findById(req.user.id).populate('assignedDistricts');
+			districts = user.assignedDistricts;
+		}
+		
 		res.json(districts);
 	} catch (err: any) {
-		res.status(500).json({ message: err.message });
+		console.error(err.message);
+		res.status(ErrorCode.HTTP_SERVER_ERROR).json(errorWrapper('Server Error'));
 	}
 });
 
-router.get('/:id', async (req, res) => {
+// @route   POST api/district
+// @desc    Create a new district (admin only)
+// @access  Private (Admin)
+router.post('/', [userAuth, requireAdmin], async (req: any, res: any) => {
 	try {
-		const district = await District.findById(req.params.id);
-		if (!district) {
-			return res.status(404).json({ message: 'District not found' });
+		const { id, name, blocks } = req.body;
+
+		// Check if district with this ID already exists
+		const existingDistrict = await District.findOne({ id });
+		if (existingDistrict) {
+			return res
+				.status(ErrorCode.HTTP_BAD_REQUEST)
+				.json(errorWrapper('District with this ID already exists'));
 		}
+
+		const newDistrict = new District({
+			id,
+			name,
+			blocks: blocks || [],
+			createdBy: req.user.id,
+		});
+
+		const district = await newDistrict.save();
 		res.json(district);
 	} catch (err: any) {
-		res.status(500).json({ message: err.message });
+		console.error(err.message);
+		res.status(ErrorCode.HTTP_SERVER_ERROR).json(errorWrapper('Server Error'));
 	}
 });
 
-router.post('/create', async (req, res) => {
-	const { id, name, blocks } = req.body;
-
-	const district = new District({
-		id,
-		name,
-		blocks,
-	});
-
+// @route   PUT api/district/:id
+// @desc    Update a district (admin only)
+// @access  Private (Admin)
+router.put('/:id', [userAuth, requireAdmin], async (req: any, res: any) => {
 	try {
-		const newDistrict = await district.save();
-		res.status(201).json(newDistrict);
-	} catch (err: any) {
-		res.status(400).json({ message: err.message });
-	}
-});
+		const { name, blocks } = req.body;
+		const districtId = req.params.id;
 
-router.patch('/:id', async (req, res) => {
-	const updates = req.body;
-	try {
-		const updatedDistrict = await District.findByIdAndUpdate(req.params.id, updates, {
-			new: true,
-		});
-		if (!updatedDistrict) {
-			return res.status(404).json({ message: 'District not found' });
+		const district = await District.findOne({ id: districtId });
+		if (!district) {
+			return res
+				.status(ErrorCode.HTTP_NOT_FOUND)
+				.json(errorWrapper('District not found'));
 		}
+
+		district.name = name || district.name;
+		district.blocks = blocks || district.blocks;
+
+		const updatedDistrict = await district.save();
 		res.json(updatedDistrict);
 	} catch (err: any) {
-		res.status(400).json({ message: err.message });
+		console.error(err.message);
+		res.status(ErrorCode.HTTP_SERVER_ERROR).json(errorWrapper('Server Error'));
 	}
 });
 
-router.delete('/:id', async (req, res) => {
+// @route   DELETE api/district/:id
+// @desc    Delete a district (admin only)
+// @access  Private (Admin)
+router.delete('/:id', [userAuth, requireAdmin], async (req: any, res: any) => {
 	try {
-		const deletedDistrict = await District.findByIdAndDelete(req.params.id);
-		if (!deletedDistrict) {
-			return res.status(404).json({ message: 'District not found' });
+		const districtId = req.params.id;
+
+		const district = await District.findOne({ id: districtId });
+		if (!district) {
+			return res
+				.status(ErrorCode.HTTP_NOT_FOUND)
+				.json(errorWrapper('District not found'));
 		}
-		res.json({ message: 'District deleted', district: deletedDistrict });
+
+		// Check if district has sites
+		const sitesInDistrict = await Site.find({ district: district._id });
+		if (sitesInDistrict.length > 0) {
+			return res
+				.status(ErrorCode.HTTP_BAD_REQUEST)
+				.json(errorWrapper('Cannot delete district with existing sites'));
+		}
+
+		await district.remove();
+		res.json({ msg: 'District removed' });
 	} catch (err: any) {
-		res.status(500).json({ message: err.message });
+		console.error(err.message);
+		res.status(ErrorCode.HTTP_SERVER_ERROR).json(errorWrapper('Server Error'));
 	}
 });
 
-router.get('/dashboard/data', async (req, res) => {
+// @route   GET api/district/:id/sites
+// @desc    Get all sites in a district (with access control)
+// @access  Private
+router.get('/:id/sites', [userAuth, checkDistrictAccess], async (req: any, res: any) => {
 	try {
-		// Get all districts with blocks as string arrays
-		const districts = await District.find();
-
-		// Get all sirens to populate the blocks
-		const sirens = await Siren.find();
-
-		// Transform the data to match the desired format for dashboard
-		const transformedData = districts.map(district => {
-			// Create block objects for each district
-			const blockObjects = district.blocks.map(blockName => {
-				// Find sirens for this block
-				const blockSirens = sirens.filter(
-					siren => siren.district === district.name && siren.block === blockName
-				);
-
-				// Map sirens to the required format
-				const formattedSirens = blockSirens.map(siren => ({
-					id: siren.id,
-					name: siren.name,
-					type: siren.type,
-					location: siren.district,
-					status: siren.status,
-					lastChecked: siren.lastChecked,
-					latitude: siren.location.lat,
-					longitude: siren.location.lng,
-				}));
-
-				// Return the formatted block
-				return {
-					id: `b${blockName.toLowerCase().replace(/[^a-z0-9]/g, '')}`, // Create a block ID
-					name: blockName,
-					parent_site: blockName,
-					sirens: formattedSirens,
-				};
-			});
-
-			// Return the district with blocks as objects containing sirens
-			return {
-				id: district.id,
-				name: district.name,
-				blocks: blockObjects,
-			};
-		});
-
-		res.json(transformedData);
-	} catch (err: any) {
-		res.status(500).json({ message: err.message });
-	}
-});
-
-router.post('/add_many', async (req, res) => {
-	try {
-		// Ensure body is an array
-		if (!Array.isArray(req.body)) {
-			return res.status(400).json({ message: 'Request body must be an array of districts' });
+		const districtId = req.params.id;
+		
+		const district = await District.findOne({ id: districtId });
+		if (!district) {
+			return res
+				.status(ErrorCode.HTTP_NOT_FOUND)
+				.json(errorWrapper('District not found'));
 		}
 
-		const districtsToAdd = req.body;
-		const newDistricts = [];
-		const errors = [];
-
-		// Process each district in the array
-		for (let i = 0; i < districtsToAdd.length; i++) {
-			const { id, name, blocks } = districtsToAdd[i];
-
-			// Create new district object
-			const district = new District({
-				id,
-				name,
-				blocks,
-			});
-
-			// Save each district
-			try {
-				const savedDistrict = await district.save();
-				newDistricts.push(savedDistrict);
-			} catch (err: any) {
-				// Track errors for individual districts
-				errors.push({
-					index: i,
-					district: districtsToAdd[i],
-					error: err.message,
-				});
-			}
-		}
-
-		// Return results
-		res.status(201).json({
-			message: `Successfully added ${newDistricts.length} districts with ${errors.length} errors`,
-			districts: newDistricts,
-			errors: errors.length > 0 ? errors : undefined,
-		});
+		const sites = await Site.find({ district: district._id });
+		res.json(sites);
 	} catch (err: any) {
-		res.status(500).json({ message: err.message });
+		console.error(err.message);
+		res.status(ErrorCode.HTTP_SERVER_ERROR).json(errorWrapper('Server Error'));
 	}
 });
 

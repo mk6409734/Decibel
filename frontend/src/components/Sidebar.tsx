@@ -95,7 +95,7 @@ const Sidebar: React.FC = () => {
             }
           >
             <BarChart3 className="mr-3 h-5 w-5" />
-            Reports
+            Alert Analytics
           </NavLink>
           
           <NavLink 

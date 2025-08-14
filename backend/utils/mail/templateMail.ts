@@ -4,11 +4,11 @@ const clientOrigin = config.get('clientOrigin');
 const confirm = (id: string) => ({
 	subject: 'Confirmation Link',
 	html: `
-      <a href='${clientOrigin}/confirm/${id}'>
+      <a href='${clientOrigin}/verify/${id}'>
         Click here to verify your Email!
       </a>
     `,
-	text: `Copy and paste this link: ${clientOrigin}/confirm/${id}`,
+	text: `Copy and paste this link: ${clientOrigin}/verify/${id}`,
 });
 
 const forgot = (id: string) => ({

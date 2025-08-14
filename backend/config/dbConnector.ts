@@ -12,10 +12,11 @@ const db = process.env.MONGO_URI;
 
 const connectDB = async () => {
 	try {
+		console.log('Attempting to connect to MongoDB at:', db);
 		await connect(db!);
-		console.log('DB Success');
+		console.log('MongoDB connected successfully!');
 	} catch (err) {
-		console.log('Error Connecting', err);
+		console.log('Error Connecting to MongoDB:', err);
 		process.exit(ErrorCode.DB_CONN_ERR);
 	}
 };

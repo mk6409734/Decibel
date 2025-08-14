@@ -12,8 +12,8 @@ import { Bell, BellOff, ChevronDown, ChevronUp } from "lucide-react";
 import { SirenType } from "@/types";
 import SirenStatusBadge from "./SirenStatusBadge";
 import SirenControlDialog from "@/components/SirenControlDialog";
-import jsPDF from "jspdf";
-import autoTable from "jspdf-autotable";
+import { toast } from 'sonner'
+
 
 interface SirenListProps {
   sirens: any[];
@@ -90,38 +90,46 @@ const SirenList: React.FC<SirenListProps> = ({ sirens, sendSignal }) => {
       }
       const sirens = await response.json();
 
-      // Create PDF
-      const doc = new jsPDF();
-      doc.setFontSize(16);
-      doc.text('Siren Execution Logs', 14, 20);
+      // Create XML content
+      let xmlContent = '<?xml version="1.0" encoding="UTF-8"?>\n';
+      xmlContent += '<siren_execution_logs>\n';
+      xmlContent += '  <generated_at>' + new Date().toISOString() + '</generated_at>\n';
+      xmlContent += '  <total_sirens>' + sirens.length + '</total_sirens>\n\n';
 
-      // Prepare table data
-      const tableData = sirens.flatMap((siren: any) =>
-        siren.logs.map((log: any) => [
-          siren.id,
-          siren.name,
-          log.action.toUpperCase(),
-          new Date(log.timestamp).toLocaleString(),
-          log.alertType || '-',
-          log.message || '-',
-        ])
-      );
-
-      // Generate table
-      autoTable(doc, {
-        head: [['Siren ID', 'Siren Name', 'Action', 'Timestamp', 'Alert Type', 'Message']],
-        body: tableData,
-        startY: 30,
-        styles: { fontSize: 10 },
-        headStyles: { fillColor: [66, 66, 66], textColor: [255, 255, 255] },
-        alternateRowStyles: { fillColor: [240, 240, 240] },
+      sirens.forEach((siren: any) => {
+        xmlContent += '  <siren>\n';
+        xmlContent += '    <id>' + siren.id + '</id>\n';
+        xmlContent += '    <name>' + siren.name + '</name>\n';
+        xmlContent += '    <logs>\n';
+        
+        siren.logs.forEach((log: any) => {
+          xmlContent += '      <log>\n';
+          xmlContent += '        <action>' + log.action.toUpperCase() + '</action>\n';
+          xmlContent += '        <timestamp>' + new Date(log.timestamp).toISOString() + '</timestamp>\n';
+          xmlContent += '        <alert_type>' + (log.alertType || 'N/A') + '</alert_type>\n';
+          xmlContent += '        <message>' + (log.message || 'N/A') + '</message>\n';
+          xmlContent += '      </log>\n';
+        });
+        
+        xmlContent += '    </logs>\n';
+        xmlContent += '  </siren>\n';
       });
 
-      // Download PDF
-      doc.save('siren_execution_logs.pdf');
+      xmlContent += '</siren_execution_logs>';
+
+      // Create and download XML file
+      const blob = new Blob([xmlContent], { type: 'application/xml' });
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'siren_execution_logs.xml';
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
     } catch (error) {
-      console.error('Error generating PDF:', error);
-      alert('Failed to download logs. Please try again.');
+      console.error('Error generating XML:', error);
+      toast.error('Failed to download logs. Please try again.');
     }
   };
 
@@ -133,12 +141,13 @@ const SirenList: React.FC<SirenListProps> = ({ sirens, sendSignal }) => {
         <div className="bg-industrial-blue text-white py-2 px-4 font-semibold flex items-center justify-between">
           <div>Siren List</div>
           <div className="text-sm space-x-4">
-            <Button
-              className="border border-gray-500 py-2 px-2 rounded-lg hover:bg-industrial-steel transition-all"
+            <button
+            className="industrial-button"
+              
               onClick={handleDownloadLogs}
             >
-              Download Siren Executions
-            </Button>
+              Download XML Logs
+            </button>
             <span>Total: {filteredSirens.length} sirens</span>
           </div>
         </div>

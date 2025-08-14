@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { Link } from 'react-router-dom';
 import { LoginCredentials } from '../services/auth';
 import { useAuth } from '../context/AuthContext';
 
@@ -74,6 +75,15 @@ const LoginPage = () => {
 						<div className='rounded-md bg-destructive/15 p-3 text-sm text-destructive'>{error}</div>
 					)}
 
+					<div className='flex items-center justify-between'>
+						<Link
+							to='/forgot-password'
+							className='text-sm text-primary hover:text-primary/90 transition-colors'
+						>
+							Forgot your password?
+						</Link>
+					</div>
+
 					<div>
 						<button
 							type='submit'
@@ -82,6 +92,18 @@ const LoginPage = () => {
 						>
 							{isLoading ? 'Signing in...' : 'Sign in'}
 						</button>
+					</div>
+
+					<div className='text-center'>
+						<p className='text-sm text-muted-foreground'>
+							Don't have an account?{' '}
+							<Link
+								to='/register'
+								className='font-medium text-primary hover:text-primary/90 transition-colors'
+							>
+								Sign up here
+							</Link>
+						</p>
 					</div>
 				</form>
 			</div>

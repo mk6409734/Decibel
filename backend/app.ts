@@ -34,7 +34,7 @@ app.use(
 );
 
 //**********************************Routes**********************************/
-app.use("/api/user", auth);
+app.use("/api/auth", auth);
 app.use(routes); // This includes sirens, districts, cap-alerts, and cap-sources
 app.use("/api/controller", controllerRouter);
 socketManager.init(server);

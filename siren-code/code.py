@@ -1,4 +1,3 @@
-from playsound import playsound
 from google_trans_new import google_translator
 from gtts import gTTS
 import os
@@ -13,6 +12,8 @@ import subprocess
 import logging
 import sys
 import pygame._sdl2 as sdl2
+import re
+from typing import Dict, List, Optional
 
 # Set up logging
 logging.basicConfig(
@@ -26,6 +27,25 @@ BACKEND_SERVER_URL = 'https://cap.decibel.company'
 SIREN_ID = 's004'
 MAX_INIT_ATTEMPTS = 5
 INIT_RETRY_DELAY = 2  # seconds
+
+# Supported languages for TTS
+SUPPORTED_LANGUAGES = {
+    'en': 'en',
+    'hi': 'hi',
+    'bn': 'bn',
+    'te': 'te',
+    'ta': 'ta',
+    'mr': 'mr',
+    'gu': 'gu',
+    'kn': 'kn',
+    'ml': 'ml',
+    'pa': 'pa',
+    'ur': 'ur',
+    'or': 'or',
+    'as': 'as',
+    'ne': 'ne',
+    'si': 'si',
+}
 
 def initialize_audio():
     """Initialize the audio system with retries and proper device detection."""
@@ -110,6 +130,101 @@ def stop_sound_pygame():
         logger.error(f"Error stopping sound: {str(e)}")
         return False
 
+def normalize_text_for_tts(text: str) -> str:
+    """Normalize text for better TTS performance by cleaning and standardizing."""
+    if not text:
+        return ""
+    
+    # Remove extra whitespace
+    text = re.sub(r'\s+', ' ', text.strip())
+    
+    # Replace common abbreviations and symbols for better pronunciation
+    replacements = {
+        '&': ' and ',
+        '+': ' plus ',
+        '=': ' equals ',
+        '%': ' percent ',
+        '#': ' number ',
+        '@': ' at ',
+        '°': ' degrees ',
+        '°C': ' degrees Celsius ',
+        '°F': ' degrees Fahrenheit ',
+        'km/h': ' kilometers per hour ',
+        'mph': ' miles per hour ',
+        'AM': ' A M ',
+        'PM': ' P M ',
+        'USA': ' U S A ',
+        'UK': ' U K ',
+        'EU': ' E U ',
+        'UN': ' U N ',
+        'WHO': ' W H O ',
+        'UNESCO': ' U N E S C O ',
+    }
+    
+    for old, new in replacements.items():
+        text = text.replace(old, new)
+    
+    # Handle numbers for better pronunciation
+    text = re.sub(r'(\d+)', r' \1 ', text)
+    
+    # Clean up multiple spaces
+    text = re.sub(r'\s+', ' ', text).strip()
+    
+    return text
+
+def translate_text(text: str, target_language: str) -> str:
+    """Translate text to target language with fallback handling."""
+    if not text or target_language == 'en':
+        return text
+    
+    try:
+        logger.info(f"Translating text to {target_language}: {text[:50]}...")
+        
+        # Use Google Translate API
+        translator = google_translator(url_suffix='in')
+        translated = translator.translate(text, lang_tgt=target_language.lower())
+        
+        if translated and translated != text:
+            logger.info(f"Translation successful: {translated[:50]}...")
+            return translated
+        else:
+            logger.warning("Translation returned same text, using fallback")
+            return text
+            
+    except Exception as e:
+        logger.error(f"Translation failed for {target_language}: {str(e)}")
+        return text
+
+def generate_tts_audio(text: str, language: str, output_file: str) -> bool:
+    """Generate TTS audio file with error handling and fallbacks."""
+    try:
+        if not text:
+            logger.warning("Empty text provided for TTS")
+            return False
+        
+        # Normalize text for better TTS
+        normalized_text = normalize_text_for_tts(text)
+        logger.info(f"Generating TTS for language {language}: {normalized_text[:50]}...")
+        
+        # Get language code for gTTS
+        lang_code = SUPPORTED_LANGUAGES.get(language.lower(), 'en')
+        
+        # Generate TTS
+        tts = gTTS(text=normalized_text, lang=lang_code, slow=False)
+        tts.save(output_file)
+        
+        # Verify file was created and has content
+        if os.path.exists(output_file) and os.path.getsize(output_file) > 0:
+            logger.info(f"TTS audio generated successfully: {output_file}")
+            return True
+        else:
+            logger.error(f"TTS audio file is empty or not created: {output_file}")
+            return False
+            
+    except Exception as e:
+        logger.error(f"Error generating TTS for {language}: {str(e)}")
+        return False
+
 class SirenManager:
     _instance = None
     _is_playing = False
@@ -122,27 +237,64 @@ class SirenManager:
             cls._instance = super().__new__(cls)
         return cls._instance
 
-    def merge_and_play(self, message_audio_en: str, message_audio_hi: str, alert_audio: str, gap_in_audio: int, frequency: int):
+    def merge_and_play(self, message_audio_en: str, message_audio_target: str, alert_audio: str, gap_in_audio: int, frequency: int):
         """Merge and play audio files with proper error handling."""
         try:
-            message_en = AudioSegment.from_mp3(message_audio_en)
-            message_hi = AudioSegment.from_mp3(message_audio_hi)
-            alert = AudioSegment.from_mp3(alert_audio)
+            # Load audio segments
+            audio_segments = []
             
-            seconds_of_silence = AudioSegment.silent(duration=gap_in_audio)
-            combined = message_en + message_hi + seconds_of_silence
+            # Add English message if it exists and is different from target
+            if os.path.exists(message_audio_en) and message_audio_en != message_audio_target:
+                try:
+                    message_en = AudioSegment.from_mp3(message_audio_en)
+                    audio_segments.append(message_en)
+                    logger.info("Added English audio segment")
+                except Exception as e:
+                    logger.warning(f"Failed to load English audio: {str(e)}")
+            
+            # Add target language message
+            if os.path.exists(message_audio_target):
+                try:
+                    message_target = AudioSegment.from_mp3(message_audio_target)
+                    audio_segments.append(message_target)
+                    logger.info("Added target language audio segment")
+                except Exception as e:
+                    logger.warning(f"Failed to load target language audio: {str(e)}")
+            
+            # Add alert sound
+            if os.path.exists(alert_audio):
+                try:
+                    alert = AudioSegment.from_mp3(alert_audio)
+                    audio_segments.append(alert)
+                    logger.info("Added alert audio segment")
+                except Exception as e:
+                    logger.warning(f"Failed to load alert audio: {str(e)}")
+            
+            if not audio_segments:
+                logger.error("No valid audio segments to combine")
+                return False
+            
+            # Combine audio segments with gap
+            combined = audio_segments[0]
+            for segment in audio_segments[1:]:
+                if gap_in_audio > 0:
+                    silence = AudioSegment.silent(duration=gap_in_audio * 1000)  # Convert to milliseconds
+                    combined = combined + silence + segment
+                else:
+                    combined = combined + segment
             
             output_path = "/home/phoenix/siren-code/combined.mp3"
-            combined.export(output_path)
+            combined.export(output_path, format="mp3")
             logger.info(f"Combined audio exported to {output_path} with frequency {frequency}")
             
             return play_sound_pygame(output_path, frequency)
+            
         except Exception as e:
             logger.error(f"Error in merge_and_play: {str(e)}")
             return False
 
     def play_message(self, message: str, alert_type: str, gap_in_audio: int, language: str, frequency: int):
-        """Play message with proper error handling."""
+        """Play message with enhanced multilingual TTS support."""
         if self._is_playing:
             logger.info("Already playing audio, ignoring new request")
             return False
@@ -161,37 +313,40 @@ class SirenManager:
             sio.emit('siren-ack-on', SIREN_ID)
             
             # If no message, just play the alert
-            if len(message) < 1:
+            if not message or len(message.strip()) < 1:
                 logger.info(f"Playing alert only: {alert_file}")
-                play_sound_pygame(alert_file, "-1")
+                play_sound_pygame(alert_file, frequency)
                 self._is_playing = False
                 return True
             
-            # Play alert sound
+            # Play alert sound first
             logger.info(f"Playing alert: {alert_file} with frequency {frequency}")
             play_sound_pygame(alert_file, frequency)
             
-            # Generate TTS for English
-            logger.info(f"Generating English TTS for message: {message}")
+            # Generate English TTS (always for consistency)
             en_file = "/home/phoenix/siren-code/captured_voice_en.mp3"
-            speak = gTTS(text=message, lang='en', slow=False)
-            speak.save(en_file)
+            en_success = generate_tts_audio(message, 'en', en_file)
             
-            # Generate TTS for other language (with fallback)
-            hi_file = "/home/phoenix/siren-code/captured_voice_hi.mp3"
-            try:
-                logger.info(f"Translating message to {language}")
-                translator = google_translator(url_suffix='in')
-                translated_text = translator.translate(message, lang_tgt=language.lower())
-                speak = gTTS(text=translated_text, lang=language.lower(), slow=False)
-                speak.save(hi_file)
-            except Exception as e:
-                logger.error(f"Translation failed: {str(e)}, using English as fallback")
-                # Use English as fallback
-                speak.save(hi_file)
+            # Generate target language TTS
+            target_file = f"/home/phoenix/siren-code/captured_voice_{language}.mp3"
+            target_success = False
+            
+            if language != 'en':
+                # Translate message to target language
+                translated_message = translate_text(message, language)
+                target_success = generate_tts_audio(translated_message, language, target_file)
+            else:
+                # For English, use the same file
+                target_file = en_file
+                target_success = en_success
             
             # Merge and play the audio files
-            return self.merge_and_play(en_file, hi_file, alert_file, gap_in_audio, frequency)
+            if en_success or target_success:
+                return self.merge_and_play(en_file, target_file, alert_file, gap_in_audio, frequency)
+            else:
+                logger.error("Failed to generate any TTS audio")
+                self._is_playing = False
+                return False
             
         except Exception as e:
             logger.error(f"Error in play_message: {str(e)}")
@@ -233,7 +388,7 @@ def disconnect():
 
 @sio.on('siren-control-siren')
 def handle_siren_control(incoming):
-    """Handle siren control commands."""
+    """Handle siren control commands with enhanced multilingual support."""
     logger.info(f"Received siren control command: {incoming}")
     
     try:
@@ -249,9 +404,15 @@ def handle_siren_control(incoming):
         # Extract parameters with defaults
         alert_type = data_in.get('alertType', 'warning')
         gap_in_audio = int(data_in.get('gapAudio', 0))
-        language = data_in.get('language', 'hi')
+        language = data_in.get('language', 'en')
         frequency = data_in.get('frequency', 1)
         conn_type = data_in.get('connType', 'any')
+        message = data_in.get('message', '')
+        
+        # Validate language
+        if language not in SUPPORTED_LANGUAGES:
+            logger.warning(f"Unsupported language {language}, falling back to English")
+            language = 'en'
         
         # Check connectivity based on connection type
         conn_ok = True
@@ -285,7 +446,7 @@ def handle_siren_control(incoming):
 
 @sio.on('siren-control-multi-siren')
 def handle_multi_siren_control(incoming):
-    """Handle multi-siren control commands."""
+    """Handle multi-siren control commands with enhanced multilingual support."""
     logger.info(f"Received multi-siren control command: {incoming}")
     
     try:
@@ -303,8 +464,14 @@ def handle_multi_siren_control(incoming):
         # Extract parameters with defaults
         alert_type = data_in.get('alertType', 'warning')
         gap_in_audio = int(data_in.get('gapAudio', 0))
-        language = data_in.get('language', 'hi')
+        language = data_in.get('language', 'en')
         frequency = data_in.get('frequency', 1)
+        message = data_in.get('message', '')
+        
+        # Validate language
+        if language not in SUPPORTED_LANGUAGES:
+            logger.warning(f"Unsupported language {language}, falling back to English")
+            language = 'en'
         
         # Process the action
         siren_manager = SirenManager()
@@ -340,7 +507,7 @@ def wait_for_connection(max_attempts=10, timeout=30):
 
 if __name__ == '__main__':
     try:
-        logger.info("Starting siren service")
+        logger.info("Starting siren service with enhanced multilingual TTS support")
         
         # Initialize audio system
         audio_ok = initialize_audio()

@@ -1,9 +1,24 @@
-const mongoose = require("mongoose")
+import mongoose, { Schema, Document } from "mongoose";
 
-const UserSchema = new mongoose.Schema({
+export interface IUser extends Document {
+	email: string;
+	name: string;
+	userName?: string;
+	password: string;
+	emailVerified: boolean;
+	avatar?: string;
+	verificationToken?: string;
+	verificationValid?: Date;
+	userType: 'admin' | 'manager' | 'operator';
+	assignedDistricts: mongoose.Types.ObjectId[]; // Only for managers and operators
+	createdBy?: mongoose.Types.ObjectId; // Reference to admin who created this user
+}
+
+const UserSchema: Schema = new Schema({
 	email: {
 		type: String,
 		required: true,
+		unique: true,
 	},
 	name: {
 		type: String,
@@ -31,15 +46,17 @@ const UserSchema = new mongoose.Schema({
 	},
 	userType: {
 		type: String,
-		enum: ['user', 'admin', 'superadmin'], //All users can trigger updates, admin can create users, superadmin can create admins
-		default: 'user',
+		enum: ['admin', 'manager', 'operator'],
+		default: 'operator',
 	},
-});
+	assignedDistricts: [{
+		type: Schema.Types.ObjectId,
+		ref: 'District',
+	}],
+	createdBy: {
+		type: Schema.Types.ObjectId,
+		ref: 'User',
+	},
+}, { timestamps: true });
 
-/*
- * TODO: Add relevant middleware here to speed up and simplify processes
- * Also look at relevant virtuals!
- */
-
-const User = new mongoose.model("User", UserSchema)
-module.exports = User
+export default mongoose.model<IUser>('User', UserSchema);

@@ -5,6 +5,12 @@ export interface LoginCredentials {
 	password: string;
 }
 
+export interface RegisterCredentials {
+	name: string;
+	email: string;
+	password: string;
+}
+
 export interface LoginResponse {
 	token: string;
 	emailVerified: boolean;
@@ -35,8 +41,19 @@ export const initAuth = () => {
 	}
 };
 
+export const register = async (credentials: RegisterCredentials): Promise<{ token: string }> => {
+	const response = await axios.post("http://localhost:5001/api/auth/register", credentials);
+	const { token } = response.data;
+
+	// Store token in localStorage and set axios headers
+	localStorage.setItem('token', token);
+	setAuthToken(token);
+
+	return response.data;
+};
+
 export const login = async (credentials: LoginCredentials): Promise<LoginResponse> => {
-	const response = await axios.post('http://localhost:5001/api/user/login', credentials);
+	const response = await axios.post("http://localhost:5001/api/auth/login", credentials);
 	const { token } = response.data;
 
 	// Store token in localStorage and set axios headers
@@ -47,7 +64,7 @@ export const login = async (credentials: LoginCredentials): Promise<LoginRespons
 };
 
 export const loadUser = async (): Promise<User> => {
-	const response = await axios.get('http://localhost:5001/api/user/');
+	const response = await axios.get("http://localhost:5001/api/auth")
 	return response.data;
 };
 

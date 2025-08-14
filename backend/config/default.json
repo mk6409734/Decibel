@@ -1,8 +1,8 @@
 {
-	"mongoURI": "mongodb://127.0.0.1:27017/sirenManagement",
+	"mongoURI": "mongodb+srv://mk945909:Mohit_12345@decibal.qvshzpp.mongodb.net/decibal?retryWrites=true&w=majority&appName=Decibal",
 	"avatarBaseURI": "https://ui-avatars.com/api/?background=0D8ABC&color=fff&name=",
 	"jwtSecret": "fwm349z#$()8zjfrwm43",
-	"clientOrigin": "scaffold.example.com",
+	"clientOrigin": "http://localhost:8080",
 	"serverPort": 5001,
 	"fromMailId": "prashant@example.com",
 	"fromMailName": "Prashant",

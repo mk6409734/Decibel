@@ -2,12 +2,11 @@ import { Request, Response, Router } from 'express';
 const router = Router();
 import { check, validationResult } from 'express-validator';
 const config = require('config');
-const User = require("../../models/User.ts")
+import User from '../../models/User';
 import crypto from 'crypto';
-// import User from '../../models/User.ts';
 import { sign } from 'jsonwebtoken';
 import { compare, genSalt, hash } from 'bcryptjs';
-import userAuth from '../../middleware/userAuth';
+import userAuth, { requireAdmin } from '../../middleware/userAuth';
 import { Types } from 'mongoose';
 import sendMail from '../../utils/mail/sendMail';
 import { confirm, forgot } from '../../utils/mail/templateMail';
@@ -32,34 +31,67 @@ router.post(
 		const errors = validationResult(req);
 		if (!errors.isEmpty()) {
 			console.log(errors);
-			return res.status(ErrorCode.HTTP_BAD_REQ).json({ errors: errors.array() });
+			return res.status(ErrorCode.HTTP_BAD_REQ).json({ 
+				errors: { 
+					message: errors.array()[0].msg 
+				} 
+			});
 		}
 
 		try {
 			//**********************************Handler Code**********************************/
 
 			const { email, name, password } = req.body;
+			console.log('Registration attempt for:', { email, name });
+			
 			let user = await User.findOne({ email });
 			const salt = await genSalt(10);
 
 			if (user) {
-				return res.status(ErrorCode.HTTP_BAD_REQ).json(errorWrapper('User Already Exists'));
+				console.log('User already exists:', email);
+				return res.status(ErrorCode.HTTP_BAD_REQ).json({ 
+					errors: { 
+						message: 'User Already Exists' 
+					} 
+				});
 			}
 
 			const avatar = config.get('avatarBaseURI') + name.replace(' ', '+');
 			const verificationToken = crypto.randomBytes(128).toString('hex');
+			
+			console.log('Creating new user with data:', {
+				name,
+				email,
+				avatar,
+				userType: 'operator',
+				assignedDistricts: []
+			});
+			
 			user = new User({
 				name,
 				email,
-				password,
+				password: await hash(password, salt),
 				avatar,
 				verificationToken,
 				verificationValid: Date.now() + 43200000,
+				userType: 'operator', // Default role for self-registration
+				assignedDistricts: [], // Empty array for new users
 			});
 
-			user.password = await hash(password, salt);
-
-			await user.save();
+			console.log('Saving user to database...');
+			try {
+				await user.save();
+				console.log('User saved successfully with ID:', user._id);
+			} catch (saveError) {
+				console.error('Error saving user to database:', saveError);
+				console.error('Save error details:', {
+					name: saveError.name,
+					message: saveError.message,
+					code: saveError.code
+				});
+				throw saveError;
+			}
+			
 			sendMail(email, confirm(verificationToken));
 
 			const payload = {
@@ -74,8 +106,17 @@ router.post(
 				res.json({ token });
 			});
 		} catch (err) {
-			console.error(`Err register:`, err);
-			res.status(ErrorCode.HTTP_SERVER_ERROR).json(errorWrapper('Server Error'));
+			console.error(`Registration error:`, err);
+			console.error(`Error details:`, {
+				message: err.message,
+				stack: err.stack,
+				name: err.name
+			});
+			res.status(ErrorCode.HTTP_SERVER_ERROR).json({ 
+				errors: { 
+					message: `Server Error: ${err.message}` 
+				} 
+			});
 		}
 	}
 );
@@ -189,21 +230,21 @@ router.get('/confirm/:verificationToken', async (req: Request, res: Response) =>
 		user.verificationValid = undefined;
 		user.emailVerified = true;
 		await user.save();
-		return res.json({ emailVerification: !user.emailVerified });
+		return res.json({ emailVerification: true });
 	} catch (err) {
 		console.error(`Err confirm:`, err);
 		res.status(ErrorCode.HTTP_SERVER_ERROR).json(errorWrapper('Server Error'));
 	}
 });
 
-// @route       POST api/user/
+// @route       GET api/user/
 // @desc        Get user details
-// @access      Public
+// @access      Private
 router.get('/', userAuth, async (req: Request, res: Response) => {
 	try {
 		let user;
 		if (req.user && req.user.id !== undefined && req.user.id !== null)
-			user = await User.findOne(new Types.ObjectId(req.user.id));
+			user = await User.findOne(new Types.ObjectId(req.user.id)).populate('assignedDistricts');
 		res.json(user);
 	} catch (err) {
 		console.error(`Err loadUser:`, err);
@@ -245,6 +286,148 @@ router.post('/update', userAuth, async (req, res) => {
 		}
 	} catch (err) {
 		console.error(`Err updateUser:`, err);
+		res.status(ErrorCode.HTTP_SERVER_ERROR).json(errorWrapper('Server Error'));
+	}
+});
+
+// @route       GET api/auth/users
+// @desc        Get all users (admin only)
+// @access      Private (Admin)
+router.get('/users', [userAuth, requireAdmin], async (req: Request, res: Response) => {
+	try {
+		const users = await User.find().populate('assignedDistricts').populate('createdBy', 'name email');
+		res.json(users);
+	} catch (err) {
+		console.error(`Err getUsers:`, err);
+		res.status(ErrorCode.HTTP_SERVER_ERROR).json(errorWrapper('Server Error'));
+	}
+});
+
+// @route       POST api/auth/users
+// @desc        Create a new user (admin only)
+// @access      Private (Admin)
+router.post(
+	'/users',
+	[
+		userAuth,
+		requireAdmin,
+		check('name', 'Name is required').not().isEmpty(),
+		check('email', 'Please input valid email').isEmail(),
+		check('password', 'Please enter a password with 6 or more characters').isLength({
+			min: 6,
+		}),
+		check('userType', 'User type is required').isIn(['admin', 'manager', 'operator']),
+	],
+	async (req: Request, res: Response) => {
+		const errors = validationResult(req);
+		if (!errors.isEmpty()) {
+			return res.status(ErrorCode.HTTP_BAD_REQ).json({ errors: errors.array() });
+		}
+
+		try {
+			const { email, name, password, userType, assignedDistricts } = req.body;
+			
+			// Check if user already exists
+			let user = await User.findOne({ email });
+			if (user) {
+				return res.status(ErrorCode.HTTP_BAD_REQ).json(errorWrapper('User Already Exists'));
+			}
+
+			const salt = await genSalt(10);
+			const hashedPassword = await hash(password, salt);
+			const avatar = config.get('avatarBaseURI') + name.replace(' ', '+');
+
+			user = new User({
+				name,
+				email,
+				password: hashedPassword,
+				avatar,
+				userType,
+				assignedDistricts: assignedDistricts || [],
+				createdBy: req.user.id,
+				emailVerified: true, // Admin-created users are automatically verified
+			});
+
+			await user.save();
+			res.json(user);
+		} catch (err) {
+			console.error(`Err createUser:`, err);
+			res.status(ErrorCode.HTTP_SERVER_ERROR).json(errorWrapper('Server Error'));
+		}
+	}
+);
+
+// @route       PUT api/auth/users/:id
+// @desc        Update user (admin only)
+// @access      Private (Admin)
+router.put(
+	'/users/:id',
+	[
+		userAuth,
+		requireAdmin,
+		check('name', 'Name is required').not().isEmpty(),
+		check('email', 'Please input valid email').isEmail(),
+		check('userType', 'User type is required').isIn(['admin', 'manager', 'operator']),
+	],
+	async (req: Request, res: Response) => {
+		const errors = validationResult(req);
+		if (!errors.isEmpty()) {
+			return res.status(ErrorCode.HTTP_BAD_REQ).json({ errors: errors.array() });
+		}
+
+		try {
+			const { name, email, userType, assignedDistricts } = req.body;
+			const userId = req.params.id;
+
+			// Check if user exists
+			let user = await User.findById(userId);
+			if (!user) {
+				return res.status(ErrorCode.HTTP_NOT_FOUND).json(errorWrapper('User Not Found'));
+			}
+
+			// Check if email is already taken by another user
+			const existingUser = await User.findOne({ email, _id: { $ne: userId } });
+			if (existingUser) {
+				return res.status(ErrorCode.HTTP_BAD_REQ).json(errorWrapper('Email Already Exists'));
+			}
+
+			// Update user
+			user.name = name;
+			user.email = email;
+			user.userType = userType;
+			user.assignedDistricts = assignedDistricts || [];
+
+			await user.save();
+			res.json(user);
+		} catch (err) {
+			console.error(`Err updateUser:`, err);
+			res.status(ErrorCode.HTTP_SERVER_ERROR).json(errorWrapper('Server Error'));
+		}
+	}
+);
+
+// @route       DELETE api/auth/users/:id
+// @desc        Delete user (admin only)
+// @access      Private (Admin)
+router.delete('/users/:id', [userAuth, requireAdmin], async (req: Request, res: Response) => {
+	try {
+		const userId = req.params.id;
+
+		// Check if user exists
+		const user = await User.findById(userId);
+		if (!user) {
+			return res.status(ErrorCode.HTTP_NOT_FOUND).json(errorWrapper('User Not Found'));
+		}
+
+		// Prevent admin from deleting themselves
+		if (user._id.toString() === req.user.id) {
+			return res.status(ErrorCode.HTTP_BAD_REQ).json(errorWrapper('Cannot delete your own account'));
+		}
+
+		await user.remove();
+		res.json({ msg: 'User removed' });
+	} catch (err) {
+		console.error(`Err deleteUser:`, err);
 		res.status(ErrorCode.HTTP_SERVER_ERROR).json(errorWrapper('Server Error'));
 	}
 });

@@ -7,12 +7,19 @@ import PlaceholderPage from './pages/PlaceholderPage';
 import NotFound from './pages/NotFound';
 import MainLayout from './components/MainLayout';
 import LoginPage from './pages/LoginPage';
+import RegisterPage from './pages/RegisterPage';
+import EmailVerificationPage from './pages/EmailVerificationPage';
+import ForgotPasswordPage from './pages/ForgotPasswordPage';
 import ProtectedRoute from './components/ProtectedRoute';
-import FileDownloadPage from './pages/fileDownloadPage';
+import FileDownloadPage from './pages/FileDownloadPage';
+import AlertAnalyticsDashboard from './pages/AlertAnalyticsDashboard';
 
 const AppRoutes = () => (
   <Routes>
     <Route path="/login" element={<LoginPage />} />
+    <Route path="/register" element={<RegisterPage />} />
+    <Route path="/verify/:verificationToken" element={<EmailVerificationPage />} />
+    <Route path="/forgot-password" element={<ForgotPasswordPage />} />
 
     {/* Protected routes */}
     <Route element={<ProtectedRoute />}>
@@ -31,12 +38,7 @@ const AppRoutes = () => (
         />
         <Route
           path="/reports"
-          element={
-            <PlaceholderPage
-              title="Reports"
-              icon={<BarChart3 className="h-8 w-8" />}
-            />
-          }
+          element={<AlertAnalyticsDashboard />}
         />
         <Route
           path="/edit"

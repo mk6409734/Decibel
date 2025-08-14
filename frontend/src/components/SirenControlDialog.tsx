@@ -15,7 +15,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Bell, BellOff, Send, ChevronDown, Info } from 'lucide-react';
+import { Bell, BellOff, Send, ChevronDown, Info, Languages, Globe } from 'lucide-react';
 import { Siren } from '@/types';
 import { socket } from '@/lib/socket';
 import {
@@ -24,6 +24,15 @@ import {
 	DropdownMenuItem,
 	DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import {
+	Select,
+	SelectContent,
+	SelectItem,
+	SelectTrigger,
+	SelectValue,
+} from '@/components/ui/select';
+import { toast } from 'sonner';
+import TranslationService, { SUPPORTED_LANGUAGES } from '@/services/translation';
 
 interface SirenControlDialogProps {
 	siren: Siren;
@@ -39,10 +48,13 @@ const SirenControlDialog: React.FC<SirenControlDialogProps> = ({ siren, isOpen, 
 	const [isWaitingForAck, setIsWaitingForAck] = useState(false);
 	const [currentStatus, setCurrentStatus] = useState(siren.status);
 	const [lastCheckedTime, setLastCheckedTime] = useState(siren.lastChecked);
+	const [selectedLanguage, setSelectedLanguage] = useState('en');
+	const [isTranslating, setIsTranslating] = useState(false);
+	const [originalMessage, setOriginalMessage] = useState('');
+	const [translatedMessage, setTranslatedMessage] = useState('');
 
 	// Refs for form inputs
 	const intervalRef = useRef<HTMLInputElement>(null);
-	const langRef = useRef<HTMLInputElement>(null);
 	const frequencyRef = useRef<HTMLInputElement>(null);
 	const messageRef = useRef<HTMLTextAreaElement>(null);
 	const statusIntervalRef = useRef<NodeJS.Timeout | null>(null);
@@ -120,6 +132,48 @@ const SirenControlDialog: React.FC<SirenControlDialogProps> = ({ siren, isOpen, 
 		};
 	}, [isOpen, siren.id]);
 
+	// Translation function using the translation service
+	const translateMessage = async (text: string, targetLang: string) => {
+		if (!text.trim() || targetLang === 'en') {
+			setTranslatedMessage(text);
+			return;
+		}
+
+		setIsTranslating(true);
+		try {
+			const translationService = TranslationService.getInstance();
+			const translated = await translationService.translateText(text, targetLang);
+			setTranslatedMessage(translated);
+			toast.success(`Message translated to ${SUPPORTED_LANGUAGES.find(l => l.code === targetLang)?.name}`);
+		} catch (error) {
+			console.error('Translation error:', error);
+			toast.error('Translation failed, using original message');
+			setTranslatedMessage(text);
+		} finally {
+			setIsTranslating(false);
+		}
+	};
+
+	// Handle message input change
+	const handleMessageChange = (value: string) => {
+		setOriginalMessage(value);
+		if (selectedLanguage !== 'en') {
+			translateMessage(value, selectedLanguage);
+		} else {
+			setTranslatedMessage(value);
+		}
+	};
+
+	// Handle language change
+	const handleLanguageChange = (langCode: string) => {
+		setSelectedLanguage(langCode);
+		if (originalMessage && langCode !== 'en') {
+			translateMessage(originalMessage, langCode);
+		} else {
+			setTranslatedMessage(originalMessage);
+		}
+	};
+
 	// Handler for toggling siren
 	const handleToggleSiren = () => {
 		if (isWaitingForAck) return;
@@ -133,29 +187,34 @@ const SirenControlDialog: React.FC<SirenControlDialogProps> = ({ siren, isOpen, 
 			connType: communicationType,
 			alertType: alarmType,
 			gapAudio: Number(intervalRef.current?.value || 0),
-			language: langRef.current?.value || 'en',
+			language: selectedLanguage,
 			frequency: Number(frequencyRef.current?.value || 1),
 		});
 	};
 
 	// Handler for sending message
 	const handleSendMessage = () => {
-		if (messageRef.current?.value) {
+		const messageToSend = translatedMessage || originalMessage;
+		if (messageToSend) {
 			socket.emit('siren-control', {
 				sirenId: siren.id,
 				action: 'on',
 				connType: communicationType,
-				message: messageRef.current.value,
+				message: messageToSend,
 				alertType: alarmType,
 				gapAudio: Number(intervalRef.current?.value || 0),
-				language: langRef.current?.value || 'en',
+				language: selectedLanguage,
 				frequency: Number(frequencyRef.current?.value || 1),
 			});
 
-			// Clear message field after sending
+			// Clear message fields after sending
+			setOriginalMessage('');
+			setTranslatedMessage('');
 			if (messageRef.current) {
 				messageRef.current.value = '';
 			}
+			
+			toast.success(`Message sent in ${SUPPORTED_LANGUAGES.find(l => l.code === selectedLanguage)?.name}`);
 		}
 	};
 
@@ -175,7 +234,7 @@ const SirenControlDialog: React.FC<SirenControlDialogProps> = ({ siren, isOpen, 
 
 	return (
 		<Dialog open={isOpen} onOpenChange={onOpenChange}>
-			<DialogContent className='sm:max-w-[650px] max-h-[85vh] overflow-auto bg-background border-border shadow-lg'>
+			<DialogContent className='sm:max-w-[700px] max-h-[85vh] overflow-y-auto overflow-x-hidden bg-background border-border shadow-lg'>
 				<DialogHeader className='border-b pb-4'>
 					<DialogTitle className='flex items-center justify-between'>
 						<div className='flex items-center gap-2'>
@@ -278,18 +337,27 @@ const SirenControlDialog: React.FC<SirenControlDialogProps> = ({ siren, isOpen, 
 							</div>
 						</div>
 
-						<div className='grid grid-cols-2 gap-4'>
+						<div className='grid grid-cols-3 gap-4'>
 							<div className='space-y-2'>
-								<Label htmlFor='language' className='text-sm font-medium'>
+								<Label className='text-sm font-medium flex items-center gap-2'>
+									<Languages className='h-4 w-4' />
 									Language
 								</Label>
-								<Input
-									id='language'
-									ref={langRef}
-									defaultValue='en'
-									disabled={isWaitingForAck}
-									className='bg-background'
-								/>
+								<Select value={selectedLanguage} onValueChange={handleLanguageChange}>
+									<SelectTrigger className='bg-background'>
+										<SelectValue placeholder='Select language' />
+									</SelectTrigger>
+									<SelectContent className='z-[9999]' position='popper' sideOffset={4}>
+										{SUPPORTED_LANGUAGES.map((lang) => (
+											<SelectItem key={lang.code} value={lang.code}>
+												<div className='flex items-center gap-2'>
+													<span>{lang.native}</span>
+													<span className='text-muted-foreground'>({lang.name})</span>
+												</div>
+											</SelectItem>
+										))}
+									</SelectContent>
+								</Select>
 							</div>
 							<div className='space-y-2'>
 								<Label htmlFor='frequency' className='text-sm font-medium'>
@@ -305,19 +373,57 @@ const SirenControlDialog: React.FC<SirenControlDialogProps> = ({ siren, isOpen, 
 									className='bg-background'
 								/>
 							</div>
+							<div className='space-y-2'>
+								<Label htmlFor='gap' className='text-sm font-medium'>
+									Gap between audio (seconds)
+								</Label>
+								<Input
+									id='gap'
+									ref={intervalRef}
+									type='number'
+									defaultValue='0'
+									min='0'
+									disabled={isWaitingForAck}
+									className='bg-background'
+								/>
+							</div>
 						</div>
 
-						<div className='space-y-2'>
-							<Label htmlFor='message' className='text-sm font-medium'>
-								Text to transmit
-							</Label>
-							<Textarea
-								id='message'
-								ref={messageRef}
-								placeholder='Enter message to broadcast'
-								className='min-h-24 bg-background'
-								disabled={isWaitingForAck || currentStatus !== 'active'}
-							/>
+						<div className='space-y-4'>
+							<div className='space-y-2'>
+								<Label htmlFor='message' className='text-sm font-medium flex items-center gap-2'>
+									<Globe className='h-4 w-4' />
+									Text to transmit (English)
+								</Label>
+								<Textarea
+									id='message'
+									ref={messageRef}
+									placeholder='Enter message in English (will be translated automatically)'
+									className='min-h-20 bg-background'
+									disabled={isWaitingForAck || currentStatus !== 'active'}
+									value={originalMessage}
+									onChange={(e) => handleMessageChange(e.target.value)}
+								/>
+							</div>
+
+							{selectedLanguage !== 'en' && originalMessage && (
+								<div className='space-y-2'>
+									<Label className='text-sm font-medium flex items-center gap-2'>
+										<Languages className='h-4 w-4' />
+										Translated Message ({SUPPORTED_LANGUAGES.find(l => l.code === selectedLanguage)?.native})
+									</Label>
+									<div className='p-3 bg-muted/30 rounded-md border'>
+										{isTranslating ? (
+											<div className='flex items-center gap-2 text-sm text-muted-foreground'>
+												<div className='animate-spin rounded-full h-4 w-4 border-b-2 border-primary'></div>
+												Translating...
+											</div>
+										) : (
+											<p className='text-sm'>{translatedMessage}</p>
+										)}
+									</div>
+								</div>
+							)}
 						</div>
 					</div>
 				</div>
@@ -344,7 +450,7 @@ const SirenControlDialog: React.FC<SirenControlDialogProps> = ({ siren, isOpen, 
 						variant='default'
 						size='sm'
 						onClick={handleSendMessage}
-						disabled={isWaitingForAck || currentStatus !== 'active'}
+						disabled={isWaitingForAck || currentStatus !== 'active' || !originalMessage.trim()}
 						className='gap-2'
 					>
 						<Send className='h-4 w-4' /> Send Message
